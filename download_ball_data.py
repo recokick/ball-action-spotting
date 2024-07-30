@@ -26,14 +26,14 @@ if __name__ == "__main__":
     # Download zipped folder per split
     soccernet_downloader = SoccerNetDownloader(LocalDirectory=args.dataset_dir)
     soccernet_downloader.downloadDataTask(
-        task="spotting-ball-2023",
+        task="spotting-ball-2024",
         split=list_splits,
         password=args.password_videos
     )
     # Extract files from zipped folders
     for split in list_splits:
         print(f"Unzipping {split}.zip ...")
-        subtask_data_dir = os.path.join(args.dataset_dir, "spotting-ball-2023")
+        subtask_data_dir = os.path.join(args.dataset_dir, "spotting-ball-2024")
         zip_filename = os.path.join(subtask_data_dir, f"{split}.zip")
         with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
             zip_ref.extractall(subtask_data_dir)
