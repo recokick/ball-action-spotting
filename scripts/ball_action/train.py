@@ -7,6 +7,10 @@ from pprint import pprint
 from importlib.machinery import SourceFileLoader
 
 import torch
+torch.cuda.empty_cache()
+import os
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
 import torch._dynamo
 
 from argus import load_model
