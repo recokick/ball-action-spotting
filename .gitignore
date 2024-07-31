@@ -5,7 +5,8 @@ __pycache__/
 
 # C extensions
 *.so
-
+*.deb
+*.deb.1
 # Distribution / packaging
 .Python
 build/

@@ -7,9 +7,15 @@ from pprint import pprint
 from importlib.machinery import SourceFileLoader
 
 import torch
-torch.cuda.empty_cache()
+print("PyTorch Version:", torch.__version__)
+print("CUDA Version:", torch.version.cuda)
+print("CUDA Available:", torch.cuda.is_available())
+print("CUDA Device Name:", torch.cuda.get_device_name(0))
+
 import os
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+print("TORCH_USE_CUDA_DSA:", os.environ.get("TORCH_USE_CUDA_DSA"))
+print("CUDA_LAUNCH_BLOCKING:", os.environ.get("CUDA_LAUNCH_BLOCKING"))
+
 
 import torch._dynamo
 
