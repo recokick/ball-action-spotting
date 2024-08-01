@@ -25,7 +25,7 @@ config = dict(
     num_nvdec_workers=3,
     num_opencv_workers=1,
     num_epochs=[7, 35],
-    stages=["warmup", "train"],
+    stages=["train"], # "warmup", 
     argus_params={
         "nn_module": ("multidim_stacker", {
             "model_name": "tf_efficientnetv2_b0.in1k",
@@ -70,7 +70,7 @@ config = dict(
         "prob": 0.25,
     },
     pretrain_action_experiment="",
-    pretrain_ball_experiment="ball_tuning_001",
+    pretrain_ball_experiment="", # ball_tuning_001
     torch_compile={
         "backend": "inductor",
         "mode": "default",

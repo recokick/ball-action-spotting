@@ -1,22 +1,17 @@
 import time
 import json
 import argparse
-import multiprocessing
+import multiprocessing as mp
 from pathlib import Path
 from pprint import pprint
 from importlib.machinery import SourceFileLoader
 
 import torch
-print("PyTorch Version:", torch.__version__)
-print("CUDA Version:", torch.version.cuda)
-print("CUDA Available:", torch.cuda.is_available())
-print("CUDA Device Name:", torch.cuda.get_device_name(0))
+import torch.distributed as dist
+import torch.multiprocessing as mp
+print(torch.cuda.is_available())
 
 import os
-print("TORCH_USE_CUDA_DSA:", os.environ.get("TORCH_USE_CUDA_DSA"))
-print("CUDA_LAUNCH_BLOCKING:", os.environ.get("CUDA_LAUNCH_BLOCKING"))
-
-
 import torch._dynamo
 
 from argus import load_model
@@ -43,16 +38,24 @@ from src.mixup import TimmMixup
 
 from src.action.constants import experiments_dir as action_experiments_dir
 
-
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("--experiment", required=True, type=str)
     parser.add_argument("--folds", default="all", type=str)
     return parser.parse_args()
 
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
 
-def train_ball_action(config: dict, save_dir: Path,
-                      train_games: list[str], val_games: list[str]):
+def cleanup():
+    dist.destroy_process_group()
+
+def train_ball_action(rank, world_size, config, save_dir, train_games, val_games):
+    print('start setup')
+    # setup(rank, world_size)
+
     argus_params = config["argus_params"]
     model = BallActionModel(argus_params)
     if "pretrained" in model.params["nn_module"][1]:
@@ -95,7 +98,7 @@ def train_ball_action(config: dict, save_dir: Path,
         torch._dynamo.reset()
         model.nn_module = torch.compile(model.nn_module, **config["torch_compile"])
 
-    device = torch.device(argus_params["device"][0])
+    device = torch.device(argus_params["device"][rank])
     train_data = get_videos_data(train_games)
     videos_sampling_weights = get_videos_sampling_weights(
         train_data, **config["train_sampling_weights"],
@@ -135,6 +138,8 @@ def train_ball_action(config: dict, save_dir: Path,
     )
 
     for num_epochs, stage in zip(config["num_epochs"], config["stages"]):
+        print(f"Epochs: {num_epochs}, Stage: {stage}")
+        torch.cuda.empty_cache()
         callbacks = [
             LoggingToFile(save_dir / "log.txt", append=True),
             LoggingToCSV(save_dir / "log.csv", append=True),
@@ -150,6 +155,7 @@ def train_ball_action(config: dict, save_dir: Path,
             model.fit(train_loader,
                       num_epochs=num_epochs,
                       callbacks=callbacks)
+
         elif stage == "train":
             checkpoint_format = "model-{epoch:03d}-{val_average_precision:.6f}.pth"
             callbacks += [
@@ -175,9 +181,10 @@ def train_ball_action(config: dict, save_dir: Path,
     train_loader.stop_workers()
     val_loader.stop_workers()
 
+    cleanup()
 
 if __name__ == "__main__":
-    multiprocessing.set_start_method("spawn")
+    mp.set_start_method("spawn")
     args = parse_arguments()
     print("Experiment:", args.experiment)
 
@@ -202,6 +209,8 @@ if __name__ == "__main__":
     with open(experiments_dir / "config.json", "w") as outfile:
         json.dump(config, outfile, indent=4)
 
+    nproc_per_node = 1  # ここでプロセス数を設定
+
     if args.folds == 'train':
         train_folds = [0, 1, 2, 3, 4]
         val_folds = [5, 6]
@@ -214,30 +223,5 @@ if __name__ == "__main__":
         print(f"Val folds: {val_folds}, train folds: {train_folds}")
         print(f"Val games: {val_games}, train games: {train_games}")
         print(f"Fold experiment dir: {fold_experiment_dir}")
-        train_ball_action(config, fold_experiment_dir, train_games, val_games)
-
-        torch._dynamo.reset()
-        torch.cuda.empty_cache()
-        time.sleep(12)
-
-    else:
-        if args.folds == "all":
-            folds = constants.folds
-        else:
-            folds = [int(fold) for fold in args.folds.split(",")]
-
-        for fold in folds:
-            train_folds = list(set(constants.folds) - {fold})
-            val_games = constants.fold2games[fold]
-            train_games = []
-            for train_fold in train_folds:
-                train_games += constants.fold2games[train_fold]
-            fold_experiment_dir = experiments_dir / f"fold_{fold}"
-            print(f"Val fold: {fold}, train folds: {train_folds}")
-            print(f"Val games: {val_games}, train games: {train_games}")
-            print(f"Fold experiment dir: {fold_experiment_dir}")
-            train_ball_action(config, fold_experiment_dir, train_games, val_games)
-
-            torch._dynamo.reset()
-            torch.cuda.empty_cache()
-            time.sleep(12)
+        
+        mp.spawn(train_ball_action, args=(nproc_per_node, config, fold_experiment_dir, train_games, val_games))
