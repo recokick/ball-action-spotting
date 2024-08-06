@@ -237,7 +237,11 @@ class MultiDimStacker(nn.Module):
         return x
 
     def forward(self, x):
+        print(x.shape)
         x = self.forward_2d(x)
+        print(x.shape)
         x = self.forward_3d(x)
+        print(x.shape)
         x = self.forward_head(x)
+        print(x.shape)
         return x
