@@ -1,0 +1,36 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Docker: Build",
+            "type": "shell",
+            "command": "make build",
+            "group": "build",
+            "problemMatcher": [],
+			"dependsOn": "Docker: Stop"
+        },
+        {
+            "label": "Docker: Run",
+            "type": "shell",
+            "command": "make run",
+            "group": "none",
+            "dependsOn": "Docker: Build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker: Debug",
+            "type": "shell",
+            "command": "make debug",
+            "group": "none",
+            "dependsOn": "Docker: Build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Docker: Stop",
+            "type": "shell",
+            "command": "make stop",
+            "group": "none",
+            "problemMatcher": []
+        }
+    ]
+}

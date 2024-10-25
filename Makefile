@@ -26,13 +26,25 @@ run:
 	docker run --rm -dit \
 		--net=host \
 		--ipc=host \
+		-p 5678:5678 \
 		$(OPTIONS) \
 		$(GPUS_OPTION) \
 		-v $(shell pwd):/workdir \
 		--name=ball-container \
 		ball-container \
 		$(COMMAND)
-	docker attach ball-container
+	# docker attach ball-container
+
+.PHONY: debug
+debug: stop build
+	docker run --rm -dit \
+		-p 5678:5678 \
+		$(OPTIONS) \
+		$(GPUS_OPTION) \
+		-v $(shell pwd):/workdir \
+		--name=ball-container \
+		ball-container \
+		python -m debugpy --listen 0.0.0.0:5678 --wait-for-client scripts/ball_action/predict.py --experiment sampling_weights_001
 
 .PHONY: attach
 attach:
